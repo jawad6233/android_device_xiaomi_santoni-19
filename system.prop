@@ -211,6 +211,9 @@ net.tcp.2g_init_rwnd=10
 # Wifi
 wifi.interface=wlan0
 
+# Usb
+persist.sys.usb.config.extra=none
+
 #Enable B service adj transition by default
 ro.vendor.qti.sys.fw.bservice_enable=true
 ro.vendor.qti.sys.fw.bservice_limit=5
