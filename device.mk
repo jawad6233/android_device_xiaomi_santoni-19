@@ -443,3 +443,12 @@ PRODUCT_COPY_FILES += \
 PRODUCT_PROPERTY_OVERRIDES += \
     ro.config.vc_call_vol_steps=15 \
     ro.config.media_vol_steps=25
+
+# Dalvik
+PRODUCT_PROPERTY_OVERRIDES += \
+    dalvik.vm.heapminfree=4m \
+    dalvik.vm.heapstartsize=16m \
+    dalvik.vm.heapgrowthlimit=192m \
+    dalvik.vm.heapsize=384m \
+    dalvik.vm.heaptargetutilization=0.75 \
+    dalvik.vm.heapmaxfree=8m
