@@ -61,6 +61,7 @@ IPACM_OffloadManager::IPACM_OffloadManager()
 	latest_cache_index = 0;
 	elrInstance = NULL;
 	touInstance = NULL;
+	is_cache = false;
 	return ;
 }
 
@@ -362,8 +363,17 @@ RET IPACM_OffloadManager::setUpstream(const char *upstream_name, const Prefix& g
 	if(upstream_name == NULL)
 	{
 		if (default_gw_index == INVALID_IFACE) {
+			result = FAIL_INPUT_CHECK;
+
+			for (index = 0; index < MAX_EVENT_CACHE; index++) {
+				if (event_cache[index].valid == true &&
+					event_cache[index].event == IPA_WAN_UPSTREAM_ROUTE_ADD_EVENT) {
+					event_cache[index].valid = false;
+					result = SUCCESS;
+				}
+			}
 			IPACMERR("no previous upstream set before\n");
-			return FAIL_INPUT_CHECK;
+			return result;
 		}
 		if (gw_addr_v4.fam == V4 && upstream_v4_up == true) {
 			IPACMDBG_H("clean upstream for ipv4-fam(%d) upstream_v4_up(%d)\n", gw_addr_v4.fam, upstream_v4_up);
@@ -435,12 +445,24 @@ RET IPACM_OffloadManager::setUpstream(const char *upstream_name, const Prefix& g
 					return FAIL_HARDWARE;
 				}
 			}
+			is_cache = true;
 			return SUCCESS;
 		}
 
 		/* reset the stats when switch from LTE->STA */
 		if (index != default_gw_index) {
 			IPACMDBG_H(" interface switched to %s\n", upstream_name);
+			if (upstream_v4_up == true) {
+				IPACMDBG_H("clean upstream for ipv4-fam(%d) upstream_v4_up(%d)\n", gw_addr_v4.fam, upstream_v4_up);
+				post_route_evt(IPA_IP_v4, default_gw_index, IPA_WAN_UPSTREAM_ROUTE_DEL_EVENT, gw_addr_v4);
+				upstream_v4_up = false;
+			}
+			if (upstream_v6_up == true) {
+				IPACMDBG_H("clean upstream for ipv6-fam(%d) upstream_v6_up(%d)\n", gw_addr_v6.fam, upstream_v6_up);
+				post_route_evt(IPA_IP_v6, default_gw_index, IPA_WAN_UPSTREAM_ROUTE_DEL_EVENT, gw_addr_v6);
+				upstream_v6_up = false;
+			}
+			default_gw_index = INVALID_IFACE;
 			if(memcmp(upstream_name, "wlan0", sizeof("wlan0")) == 0)
 			{
 				IPACMDBG_H("switch to STA mode, need reset wlan-fw stats\n");
@@ -547,7 +569,7 @@ RET IPACM_OffloadManager::stopAllOffload()
 RET IPACM_OffloadManager::setQuota(const char * upstream_name /* upstream */, uint64_t mb/* limit */)
 {
 	wan_ioctl_set_data_quota quota;
-	int fd = -1;
+	int fd = -1,rc = 0;
 
 	if ((fd = open(DEVICE_NAME, O_RDWR)) < 0)
 	{
@@ -567,12 +589,20 @@ RET IPACM_OffloadManager::setQuota(const char * upstream_name /* upstream */, ui
 
 	IPACMDBG_H("SET_DATA_QUOTA %s %llu", quota.interface_name, (long long)mb);
 
-	if (ioctl(fd, WAN_IOC_SET_DATA_QUOTA, &quota) < 0) {
-        IPACMERR("IOCTL WAN_IOCTL_SET_DATA_QUOTA call failed: %s", strerror(errno));
-		close(fd);
-		return FAIL_TRY_AGAIN;
-	}
+	rc = ioctl(fd, WAN_IOC_SET_DATA_QUOTA, &quota);
 
+	if(rc != 0)
+	{
+		close(fd);
+        	IPACMERR("IOCTL WAN_IOCTL_SET_DATA_QUOTA call failed: %s rc: %d\n", strerror(errno),rc);
+		if (errno == ENODEV) {
+			IPACMDBG_H("Invalid argument.\n");
+			return FAIL_UNSUPPORTED;
+		}
+		else {
+			return FAIL_TRY_AGAIN;
+		}
+	}
 	close(fd);
 	return SUCCESS;
 }
@@ -641,12 +671,12 @@ int IPACM_OffloadManager::post_route_evt(enum ipa_ip_type iptype, int index, ipa
 	IPACMDBG_H("IPV6 gateway: %08x:%08x:%08x:%08x \n",
 					evt_data_route->ipv6_addr_gw[0], evt_data_route->ipv6_addr_gw[1], evt_data_route->ipv6_addr_gw[2], evt_data_route->ipv6_addr_gw[3]);
 #endif
-	if (event == WAN_UPSTREAM_ROUTE_ADD)
+	if (event == IPA_WAN_UPSTREAM_ROUTE_ADD_EVENT)
 	{
 		IPACMDBG_H("Received WAN_UPSTREAM_ROUTE_ADD: fid(%d) tether_fid(%d) ip-type(%d)\n", evt_data_route->if_index,
 			evt_data_route->if_index_tether, evt_data_route->iptype);
 	}
-	else if (event == WAN_UPSTREAM_ROUTE_DEL)
+	else if (event == IPA_WAN_UPSTREAM_ROUTE_DEL_EVENT)
 	{
 		IPACMDBG_H("Received WAN_UPSTREAM_ROUTE_DEL: fid(%d) tether_fid(%d) ip-type(%d)\n", evt_data_route->if_index,
 			evt_data_route->if_index_tether, evt_data_route->iptype);
@@ -759,4 +789,57 @@ bool IPACM_OffloadManager::search_framwork_cache(char * interface_name)
 	}
 	IPACMDBG_H(" not found netdev (%s) has cached event\n", interface_name);
 	return rel;
+}
+
+bool IPACM_OffloadManager::push_framework_event(const char * if_name, _ipacm_offload_prefix prefix)
+{
+	bool ret =  false;
+
+	for(int i = 0; i < MAX_EVENT_CACHE ;i++)
+	{
+		if((latest_cache_index >= 0) && (latest_cache_index < MAX_EVENT_CACHE) &&
+			(event_cache[latest_cache_index].valid == false))
+		{
+			//do the copy
+			event_cache[latest_cache_index].valid = true;
+			event_cache[latest_cache_index].event = IPA_DOWNSTREAM_ADD;
+			memcpy(event_cache[latest_cache_index].dev_name, if_name,
+				sizeof(event_cache[latest_cache_index].dev_name));
+			memcpy(&event_cache[latest_cache_index].prefix_cache, &prefix,
+				sizeof(event_cache[latest_cache_index].prefix_cache));
+
+			if (prefix.iptype == IPA_IP_v4) {
+				IPACMDBG_H("cache event(%d) subnet info v4Addr (%x) v4Mask (%x) dev(%s) on entry (%d)\n",
+						event_cache[latest_cache_index].event,
+						event_cache[latest_cache_index].prefix_cache.v4Addr,
+						event_cache[latest_cache_index].prefix_cache.v4Mask,
+						event_cache[latest_cache_index].dev_name,
+						latest_cache_index);
+			} else {
+				IPACMDBG_H("cache event (%d) v6Addr: %08x:%08x:%08x:%08x \n",
+						event_cache[latest_cache_index].event,
+						event_cache[latest_cache_index].prefix_cache.v6Addr[0],
+						event_cache[latest_cache_index].prefix_cache.v6Addr[1],
+						event_cache[latest_cache_index].prefix_cache.v6Addr[2],
+						event_cache[latest_cache_index].prefix_cache.v6Addr[3]);
+				IPACMDBG_H("subnet v6Mask: %08x:%08x:%08x:%08x dev(%s) on entry(%d),\n",
+						event_cache[latest_cache_index].prefix_cache.v6Mask[0],
+						event_cache[latest_cache_index].prefix_cache.v6Mask[1],
+						event_cache[latest_cache_index].prefix_cache.v6Mask[2],
+						event_cache[latest_cache_index].prefix_cache.v6Mask[3],
+						event_cache[latest_cache_index].dev_name,
+						latest_cache_index);
+			}
+			latest_cache_index = (latest_cache_index + 1)% MAX_EVENT_CACHE;
+			ret = true;
+			break;
+		}
+		latest_cache_index = (latest_cache_index + 1)% MAX_EVENT_CACHE;
+		if(i == MAX_EVENT_CACHE - 1)
+		{
+			IPACMDBG_H(" run out of event cache (%d)\n", i);
+			ret = false;
+		}
+	}
+	return ret;
 }
