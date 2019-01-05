@@ -209,6 +209,9 @@ BLOCK_BASED_OTA := true
 # Peripheral manager
 TARGET_PER_MGR_ENABLED := true
 
+# Power
+TARGET_PROVIDES_POWERHAL := true
+
 # Qualcomm
 BOARD_USES_QCOM_HARDWARE := true
 
