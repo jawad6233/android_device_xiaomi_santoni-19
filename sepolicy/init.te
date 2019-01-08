@@ -4,6 +4,7 @@ allow init shell_exec:file { execute open read };
 allow init btnvtool_exec:file { execute read open };
 allow init property_socket:sock_file write;
 allow init init:socket { create read };
-#allow init firmware_file:dir create;
+allow init fingerprintd:binder { transfer call };
+allow init gx_fpd_device:chr_file { write ioctl };
 allow init unlabeled:file rw_file_perms;
 allow init unlabeled:dir execute;
