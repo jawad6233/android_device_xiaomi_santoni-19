@@ -190,10 +190,6 @@ on boot
     chown system system /sys/devices/soc/soc:fpc1020/wakeup_enable
     chmod 0660 /sys/devices/soc/soc:fpc1020/wakeup_enable
 
-    # Glove Mode
-    chown system system /sys/class/tp_glove/device/glove_enable
-    chmod 0660 /sys/class/tp_glove/device/glove_enable
-
     # Notification LED
     chown system system /sys/class/leds/red/blink
     chown system system /sys/class/leds/green/blink
@@ -892,8 +888,10 @@ service qlogd /system/xbin/qlogd
     socket qlogd stream 0662 system system
     class main
     disabled
+
 on property:persist.sys.qlogd=1
     start qlogd
+
 on property:persist.sys.qlogd=0
     stop qlogd
 
@@ -922,14 +920,6 @@ on property:sys.wfdservice=enable
 
 on property:sys.wfdservice=disable
     stop wfdservice
-
-#service RIDL /system/vendor/bin/RIDLClient.exe
-#    class late_start
-#    oneshot
-#    user system
-#    group system inet log sdcard_r sdcard_rw diag
-    # removed for security team - misc bluetooth radio gps wifi diag media_rw
-    # limited to 12 groups.  Unused: audio usb net_bt_admin net_bt_stac net_raw net_admin
 
 # service for USERDEBUG
 service LKCore-dbg /system/vendor/bin/LKCore
@@ -990,12 +980,6 @@ service gx_fpd /system/vendor/bin/gx_fpd
      writepid /dev/cpuset/system-background/tasks
      disabled
 
-service fingerprint_log /system/bin/fingerprint_log
-    class late_start
-    user system
-    group system sdcard_rw
-    disabled
-
 on property:persist.sys.fp.vendor=switchf
     stop gx_fpd
     setprop persist.sys.fp.vendor searchf
@@ -1008,22 +992,3 @@ on property:persist.sys.fp.vendor=goodix
    setprop ro.hardware.fingerprint goodix
    start fps_hal
 
-on property:persist.sys.wingtech.debug=1
-   start fingerprint_log
-
-on property:persist.sys.wingtech.debug=0
-   stop fingerprint_log
-
-service displayfeature /system/bin/displayfeature
-    class main
-
-# Logcat dump daemon, dumps logs to logdump partition
-service logdumpd /system/bin/logcat -b all -v threadtime -D -w /dev/block/bootdevice/by-name/logdump
-    class core
-    writepid /dev/cpuset/system-background/tasks
-    seclabel u:r:logdumpd:s0
-    disabled
-
-# Logdumpd is enabled only for userdebug non-perf build
-on property:ro.logdumpd.enabled=1
-    start logdumpd
