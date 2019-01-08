@@ -75,6 +75,12 @@ vendor/lib64/com.qualcomm.qti.bluetooth_audio@1.0_vendor.so|4aae77be458909761565
 vendor/lib64/libbtnv.so|19c1fde09804422dd0988888254383c4b907122e
 vendor/lib64/libbt-hidlclient.so|be758e47b5b7091f8fc475162ea4f9c7071f6813
 
+# Bluetooth (aptX) - from marlin - OPM1.171019.011
+lib/libaptX_encoder.so|984739a0bc968e18f75ced205733fe3f51c2d4f0
+lib/libaptXHD_encoder.so|974c486e4ca03faa0713553d9dfe2995ac93e01c
+lib64/libaptX_encoder.so|0cebad28afcf29f931bdc2d24fce2730dc882ecf
+lib64/libaptXHD_encoder.so|90f47f10af28b3ead143200cb4370b847c513127
+
 # CNE - from TA-1021 - OPR1.170623.026
 etc/cne/andsfCne.xml|f81a69eac5dd16bbb195a0fcf1211a51cc014553
 etc/cne/SwimConfig.xml|68dedcca1c2ac18cf81fdee1854de16a3a60dd02
