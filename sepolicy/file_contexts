@@ -37,3 +37,6 @@
 
 # IR
 /sys/devices/soc/soc:gpio-leds/leds(/.*)?	u:object_r:sysfs_leds:s0
+
+# Rild
+/(vendor|system/vendor)/radio/qcril_database/qcril.db		u:object_r:rild_file:s0
