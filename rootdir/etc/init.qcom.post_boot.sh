@@ -222,6 +222,15 @@ function 8937_sched_dcvs_hmp()
 }
 target=`getprop ro.board.platform`
 
+function configure_io_scheduler() {
+    echo bfq > /sys/block/mmcblk0/queue/scheduler
+    echo bfq > /sys/block/mmcblk0rpmb/queue/scheduler
+
+    if [ -f /sys/block/mmcblk1/queue/scheduler ]; then
+        echo bfq > /sys/block/mmcblk1/queue/scheduler
+    fi
+}
+
 function configure_zram_parameters() {
     echo 0 > /proc/sys/vm/page-cluster
 
@@ -1930,6 +1939,8 @@ case "$target" in
                 echo 1 > /sys/module/lpm_levels/lpm_workarounds/dynamic_clock_gating
                 # Enable timer migration to little cluster
                 echo 1 > /proc/sys/kernel/power_aware_timer_migration
+                # Configure IO Scheduler to BFQ
+                configure_io_scheduler
                 # Set Memory parameters
                 configure_memory_parameters
                 ;;
@@ -2024,6 +2035,8 @@ case "$target" in
                 echo 1 > /sys/module/lpm_levels/lpm_workarounds/dynamic_clock_gating
                 # Enable timer migration to little cluster
                 echo 1 > /proc/sys/kernel/power_aware_timer_migration
+                # Configure IO Scheduler to BFQ
+                configure_io_scheduler
                 # Set Memory parameters
                 configure_memory_parameters
             ;;
