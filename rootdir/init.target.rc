@@ -84,31 +84,11 @@ service per_proxy /system/vendor/bin/pm-proxy
     disabled
     writepid /dev/cpuset/system-background/tasks
 
-service qfp-daemon /system/bin/qfp-daemon
-   class late_start
-   user system
-   group system drmrpc
-
 on property:init.svc.per_mgr=running
     start per_proxy
 
 on property:sys.shutdown.requested=*
     stop per_proxy
-
-service qrngd /system/bin/qrngd -f
-   class main
-   user root
-   group root
-
-service qrngp /system/bin/qrngp -f
-   class main
-   user root
-   group root
-   oneshot
-   disabled
-
-on property:sys.boot_completed=1
-   start qrngp
 
 service qseecomd /system/vendor/bin/qseecomd
    class core
@@ -242,5 +222,3 @@ service ppd /system/vendor/bin/mm-pp-dpps
     socket pps stream 0660 system system
     disabled
 
-on property:sys.boot_completed=1
-    swapon_all /system/vendor/etc/fstab.qcom

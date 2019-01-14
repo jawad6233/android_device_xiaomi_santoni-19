@@ -223,38 +223,15 @@ function 8937_sched_dcvs_hmp()
 target=`getprop ro.board.platform`
 
 function configure_zram_parameters() {
-    MemTotalStr=`cat /proc/meminfo | grep MemTotal`
-    MemTotal=${MemTotalStr:16:8}
+    echo 0 > /proc/sys/vm/page-cluster
 
-    low_ram=`getprop ro.config.low_ram`
-
-    # Zram disk - 75% for Go devices.
-    # For 512MB Go device, size = 384MB
-    # For 1GB Go device, size = 768MB
-    # For >3GB Non-Go device, size = 1GB
-    # For <=3GB Non-Go device, size = 512MB
-    # And enable lz4 zram compression for Go devices
     if [ -f /sys/block/zram0/disksize ]; then
-        if [ $MemTotal -le 524288 ] && [ "$low_ram" == "true" ]; then
-            echo lz4 > /sys/block/zram0/comp_algorithm
-            echo 402653184 > /sys/block/zram0/disksize
-        elif [ $MemTotal -le 1048576 ] && [ "$low_ram" == "true" ]; then
-            echo lz4 > /sys/block/zram0/comp_algorithm
-            echo 805306368 > /sys/block/zram0/disksize
-        else
-            # Set Zram disk size to 512MB for <=3GB
-            # and 1GB for >3GB Non-Go targets.
-            if [ $MemTotal -gt 3145728 ]; then
-                echo 1073741824 > /sys/block/zram0/disksize
-            else
-                echo 536870912 > /sys/block/zram0/disksize
-            fi
-        fi
+        echo lz4 > /sys/block/zram0/comp_algorithm
+        echo 1073741824 > /sys/block/zram0/disksize
+        echo 4 > /sys/block/zram0/max_comp_streams
+
         mkswap /dev/block/zram0
         swapon /dev/block/zram0 -p 32758
-
-        # Set swappiness to 100 for all targets
-        echo 100 > /proc/sys/vm/swappiness
     fi
 }
 
@@ -265,12 +242,18 @@ function configure_read_ahead_kb_values() {
     # Set 128 for <= 3GB &
     # Set 512 for > 3GB
     if [ $MemTotal -le 3145728 ]; then
-        echo 128 > /sys/block/mmcblk0/bdi/read_ahead_kb
-        echo 128 > /sys/block/mmcblk0/queue/read_ahead_kb
-        echo 128 > /sys/block/mmcblk0rpmb/bdi/read_ahead_kb
-        echo 128 > /sys/block/mmcblk0rpmb/queue/read_ahead_kb
-        echo 128 > /sys/block/dm-0/queue/read_ahead_kb
-        echo 128 > /sys/block/dm-1/queue/read_ahead_kb
+        echo 256 > /sys/block/mmcblk0/bdi/read_ahead_kb
+        echo 256 > /sys/block/mmcblk0/queue/read_ahead_kb
+        echo 256 > /sys/block/mmcblk0rpmb/bdi/read_ahead_kb
+        echo 256 > /sys/block/mmcblk0rpmb/queue/read_ahead_kb
+        echo 256 > /sys/block/dm-0/queue/read_ahead_kb
+        echo 256 > /sys/block/dm-1/queue/read_ahead_kb
+        if [ -f /sys/block/mmcblk1/bdi/read_ahead_kb ]; then
+                echo 256 > /sys/block/mmcblk1/bdi/read_ahead_kb
+        fi
+        if [ -f /sys/block/mmcblk1/queue/read_ahead_kb ]; then
+                echo 256 > /sys/block/mmcblk1/queue/read_ahead_kb
+        fi
     else
         echo 512 > /sys/block/mmcblk0/bdi/read_ahead_kb
         echo 512 > /sys/block/mmcblk0/queue/read_ahead_kb
@@ -278,6 +261,12 @@ function configure_read_ahead_kb_values() {
         echo 512 > /sys/block/mmcblk0rpmb/queue/read_ahead_kb
         echo 512 > /sys/block/dm-0/queue/read_ahead_kb
         echo 512 > /sys/block/dm-1/queue/read_ahead_kb
+        if [ -f /sys/block/mmcblk1/bdi/read_ahead_kb ]; then
+                echo 512 > /sys/block/mmcblk1/bdi/read_ahead_kb
+        fi
+        if [ -f /sys/block/mmcblk1/queue/read_ahead_kb ]; then
+                echo 512 > /sys/block/mmcblk1/queue/read_ahead_kb
+        fi
     fi
 }
 
@@ -386,27 +375,10 @@ else
 
     configure_read_ahead_kb_values
 
-    SWAP_ENABLE_THRESHOLD=1048576
-    swap_enable=`getprop ro.vendor.qti.config.swap`
-
     if [ -f /sys/devices/soc0/soc_id ]; then
         soc_id=`cat /sys/devices/soc0/soc_id`
     else
         soc_id=`cat /sys/devices/system/soc/soc0/id`
-    fi
-
-    # Enable swap initially only for 1 GB targets
-    if [ "$MemTotal" -le "$SWAP_ENABLE_THRESHOLD" ] && [ "$swap_enable" == "true" ]; then
-        # Static swiftness
-        echo 1 > /proc/sys/vm/swap_ratio_enable
-        echo 70 > /proc/sys/vm/swap_ratio
-
-        # Swap disk - 200MB size
-        if [ ! -f /data/system/swap/swapfile ]; then
-            dd if=/dev/zero of=/data/system/swap/swapfile bs=1m count=200
-        fi
-        mkswap /data/system/swap/swapfile
-        swapon /data/system/swap/swapfile -p 32758
     fi
 fi
 }
@@ -1890,20 +1862,6 @@ case "$target" in
         case "$soc_id" in
            "303" | "307" | "308" | "309" | "320" | "353")
 
-                  # Start Host based Touch processing
-                  case "$hw_platform" in
-                    "MTP" )
-			start_hbtp
-                        ;;
-                  esac
-
-                  case "$hw_platform" in
-                    "Surf" | "RCM" )
-			if [ $platform_subtype_id -ne "4" ]; then
-			    start_hbtp
-		        fi
-                        ;;
-                  esac
                 # Apply Scheduler and Governor settings for 8917 / 8920
 
                 echo 20000000 > /proc/sys/kernel/sched_ravg_window
@@ -1981,13 +1939,6 @@ case "$target" in
 
         case "$soc_id" in
              "294" | "295" | "313" )
-
-                  # Start Host based Touch processing
-                  case "$hw_platform" in
-                    "MTP" | "Surf" | "RCM" )
-                        start_hbtp
-                        ;;
-                  esac
 
                 # Apply Scheduler and Governor settings for 8937/8940
 
