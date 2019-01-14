@@ -118,8 +118,6 @@ vendor.vidc.disable.split.mode=1
 vendor.vidc.enc.disable.pq=true
 
 # Perf
-ro.vendor.gt_library=libqti-gt.so
-ro.vendor.at_library=libqti-at.so
 ro.vendor.extension_library=libqti-perfd-client.so
 ro.vendor.qti.am.reschedule_service=true
 
@@ -195,9 +193,6 @@ persist.vendor.radio.rat_on=combine
 persist.vendor.radio.sib16_support=1
 service.qti.ims.enabled=1
 telephony.lteOnCdmaDevice=1
-
-#SdcardFs
-ro.sys.sdcardfs=true
 
 # Time Services
 persist.timed.enable=true
