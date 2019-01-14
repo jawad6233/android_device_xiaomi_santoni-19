@@ -326,15 +326,11 @@ PRODUCT_COPY_FILES += \
 # Qualcomm
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/configs/privapp-permissions-oem.xml:system/etc/permissions/privapp-permissions-oem.xml \
-    $(LOCAL_PATH)/configs/qti_whitelist.xml:system/etc/sysconfigs/qti_whitelist.xml
+    $(LOCAL_PATH)/configs/qti_whitelist.xml:system/etc/sysconfig/qti_whitelist.xml
 
 # QMI
 PRODUCT_PACKAGES += \
     libjson
-
-# Qualcomm
-PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/configs/privapp-permissions-oem.xml:system/etc/permissions/privapp-permissions-oem.xml
 
 # Ramdisk
 PRODUCT_PACKAGES += \
@@ -414,10 +410,6 @@ PRODUCT_PACKAGES += \
 # VNDK-SP:
 PRODUCT_PACKAGES += \
     vndk-sp
-
-# Whitelisted app
-PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/configs/qti_whitelist.xml:system/etc/sysconfig/qti_whitelist.xml
 
 # Native libraries
 PRODUCT_COPY_FILES += \
