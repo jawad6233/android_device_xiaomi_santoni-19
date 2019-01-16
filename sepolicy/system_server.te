@@ -1,2 +1,5 @@
 allow system_server qti_debugfs:file r_file_perms;
 allow system_server unlabeled:file unlink;
+
+# ignore denial
+dontaudit system_server dalvikcache_data_file:file { write execute };
