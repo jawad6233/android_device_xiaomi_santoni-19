@@ -4,3 +4,6 @@ get_prop(untrusted_app_25, camera_prop);
 allow untrusted_app proc_vmstat:file r_file_perms;
 allow untrusted_app sysfs_leds:dir r_dir_perms;
 allow untrusted_app sysfs_leds:{ file lnk_file } rw_file_perms;
+
+# ignore denial
+dontaudit untrusted_app hal_memtrack_hwservice:hwservice_manager find;
